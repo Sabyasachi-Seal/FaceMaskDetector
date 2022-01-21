@@ -1,0 +1,232 @@
+# %% [markdown]
+# # Importing Required Modules
+
+# %%
+import cv2
+import numpy as np
+import requests
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+
+
+# %% [markdown]
+# # Downloading the HAAR Data File
+
+# %%
+def gethaar(url="https://raw.githubusercontent.com/opencv/opencv/22f0bcaf8f4fb406ae251830cf99b7ea05de40e4/data/haarcascades/haarcascade_frontalface_default.xml"):    
+    haar = requests.get(url)
+    return haar
+
+# %% [markdown]
+# # Saving the HAAR Data File
+
+# %%
+def savehaar(haar):
+    datafile = open("data.xml", "wb")
+    datafile.write(haar.content)
+    datafile.close()
+
+# %% [markdown]
+# # Using the Classifier to get the Face Cooridinate
+
+# %%
+def classify():
+    haar_data = cv2.CascadeClassifier('data.xml')
+    return haar_data
+
+# %% [markdown]
+# # Using the Default Video Capture Device
+
+# %%
+def setcam():
+    capture = cv2.VideoCapture(0)
+    return capture
+def releasecam(capture):
+    capture.release()
+
+# %% [markdown]
+# # Storing the Mask And Umasked Data / Predict
+
+# %%
+def facedata(haar_data, data=[], predicting=False):
+    capture = setcam()
+    font = cv2.FONT_HERSHEY_COMPLEX
+    names = {0: 'Mask', 1: 'No Mask'}
+    prepared = False
+    while True:
+        flag, img = capture.read()
+        if flag:
+            faces = haar_data.detectMultiScale(img)
+            for x, y, w, h in faces:
+                if not predicting:
+                    cv2.rectangle(img, (x,y), (x+w, y+h), (255,0,255), 4)
+                face = img[y:y+h, x:x+w, :]
+                face = cv2.resize(face, (50, 50))
+                if predicting:
+                    if not prepared:
+                        load()
+                        reshape()
+                        X = combine(with_mask, without_mask)
+                        labels = divide(X)
+                        X = fit(X)
+                        svm = train(X, labels)
+                        prepared = True
+                    face = fit(face)
+                    pred = svm.predict(face)[0]
+                    n = names[int(pred)]
+                    
+                    if n == 'Mask':
+                        cv2.rectangle(img, (x,y), (x+w, y+h), (0,255,0), 4)
+                    else:
+                        cv2.rectangle(img, (x,y), (x+w, y+h), (0,0,255), 4)
+                    cv2.putText(img, n, (x, y), font, 1, (244, 250, 250), 2)
+                if len(data)<250 and not predicting:
+                    data.append(face)
+            cv2.imshow("Seal's Face Mask Detector", img)
+            if cv2.waitKey(10) == 27 or len(data)>=250:
+                break
+    releasecam(capture)
+    cv2.destroyAllWindows()
+    if not predicting:
+        return data
+
+
+# %% [markdown]
+# # Storing Unmasked Data
+
+# %%
+def unmasked(haar_data):
+    print("Don't Wear A Mask. Press Escape to Exit.")
+    data = facedata(haar_data, data=[])
+    np.save('without_mask.npy', data)
+    return True
+
+# %% [markdown]
+# # Storing Masked Data
+
+# %%
+def masked(haar_data):
+    print("Wear A Mask. Press Escape to Exit.")
+    data = facedata(haar_data, data=[])
+    np.save('with_mask.npy', data)
+    return True
+
+# %% [markdown]
+# # Loading the saved files
+
+# %%
+def load():
+    global with_mask, without_mask
+    with_mask = np.load("with_mask.npy")
+    without_mask = np.load("without_mask.npy")
+
+# %% [markdown]
+# # Reshaping the saved files
+
+# %%
+def reshape():
+    global with_mask, without_mask
+    with_mask = with_mask.reshape(250, 50*50*3)
+    without_mask = without_mask.reshape(250, 50*50*3)
+
+# %% [markdown]
+# # Combining the Reshaped Files
+
+# %%
+def combine(lst1, lst2):
+    X = np.r_[lst1, lst2]
+    return X
+
+# %% [markdown]
+# # Segregating the Dependent Variable 
+
+# %%
+def divide(X):
+    labels = np.zeros(X.shape[0])
+    labels[250:] = 1.0
+    return labels
+
+# %% [markdown]
+# # Fitting Data
+
+# %%
+def fit(X, n=3):
+    pca = PCA(n_components=n)
+    X = pca.fit_transform(X)
+    return X
+
+# %% [markdown]
+# # Training
+
+# %%
+def train(x_train, y_train):
+    global svm
+    svm = SVC()
+    x_train, x_useless, y_train, y_useless = train_test_split(x_train, y_train, test_size=0.01)
+    svm.fit(x_train, y_train)
+    return svm
+
+# %% [markdown]
+# # Predicting
+
+# %%
+def predict(var, svm):
+    y_pred = svm.predict(var)
+    return y_pred
+
+# %% [markdown]
+# # Calculating Accuracy
+
+# %%
+def accuracy(y_train, y_pred):
+    return accuracy_score(y_train, y_pred)
+
+
+# %% [markdown]
+# # Driver Function
+
+# %%
+def resetconfirmation():
+    return "n"
+def preparepredictor():
+    load()
+    reshape()
+    X = combine(with_mask, without_mask)
+    labels = divide(X)
+    X = fit(X)
+    svm = train(X, labels)
+    # y_pred = predict(X, svm)
+    # confidence = accuracy(labels, y_pred)
+    # print(y_pred, confidence)
+def main(ispredicting  = False):
+    if not ispredicting:
+        url = "https://raw.githubusercontent.com/opencv/opencv/22f0bcaf8f4fb406ae251830cf99b7ea05de40e4/data/haarcascades/haarcascade_frontalface_default.xml"
+        haar = gethaar(url)
+        savehaar(haar)
+        haar_data = classify()
+        confirm = resetconfirmation()
+        while confirm.lower() != "y":
+            print("Remove a Mask if you are wearing one.\nSit In a well-lit environment.\nPress Y to confirm: ")
+            confirm = input()
+        unmasked(haar_data)
+        confirm = resetconfirmation()
+        while confirm.lower() != "y":
+            print("Wear a Mask if you are not wearing one.\nSit In a well-lit environment.\nPress Y to confirm: ")
+            confirm = input()
+        masked(haar_data)
+    else:
+        haar_data = classify()
+        facedata(haar_data, [], predicting=ispredicting)
+
+
+# %% [markdown]
+# # Calling Main
+
+# %%
+if __name__ == "__main__":
+    for i in range(2):
+        main(ispredicting=(False if i%2==0 else True))
+
+
