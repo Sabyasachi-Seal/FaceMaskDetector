@@ -5,6 +5,8 @@
 ### Requirements
 - OpenCV
 - JSON
+- Numpy
+- Sklearn
 
 <hr>
 
