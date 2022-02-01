@@ -17,7 +17,7 @@
 
 <hr>
 
-## Make sure to go to have a video camera ready and a face mask nearby.
+## Make sure to have a video camera ready and a face mask nearby.
 
 <hr>
 
