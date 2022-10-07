@@ -1,6 +1,7 @@
 # [Face Mask Detector](https://github.com/Sabyasachi-Seal/FaceMaskDetector/)
 
 <hr>
+A project on face mask detection
 
 ### Requirements
 - OpenCV
